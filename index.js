@@ -6,12 +6,12 @@ const config = require('./config.json');
 const captainRoleId = '571729215758794763';
 const playerRoleId = '565517370509230100';
 
-const teamsChannelCategory = '565519532483936308'
+const teamsChannelCategory = '565519532483936308';
 
 if (config.debug)
-	const roleChannelId = '571726631668809728'; //Channel de debug
+	var roleChannelId = '571726631668809728'; //Channel de debug
 else
-	const roleChannelId = '568482301000941608'; //Channel de role
+	var roleChannelId = '568482301000941608'; //Channel de role
 
 function createTeam(name, msg) {
 	msg.guild.createRole({
@@ -59,24 +59,27 @@ function createTeam(name, msg) {
 
 }
 
+function joinTeam(name, msg) {
+	msg.member.addRoles([msg.guild.roles.find(x => x.name === name), playerRoleId])
+		.then(member => {
+			console.log(`Player ${member.user.username} successfully joined team ${name}.`)
+			msg.react('✅')
+				.then(console.log('White Check Mark added.'))
+				.catch(console.error);
+		})
+		.catch(console.error);
+}
+
 function alreadyHasTeam(member) {
 	return member.roles.find(x => x.id === captainRoleId || x.id === playerRoleId);
 }
 
-function doesTeamExist(name, msg) {
-	return msg.guild.roles.find(x => x.name === name);
+function doesTeamExist(name, guild) {
+	return guild.roles.find(x => x.name === name);
 }
 
-function isTeamFull(name) {
-	return false;
-}
-
-function joinTeam(name, msg) {
-	msg.member.addRoles([role, playerRoleId])
-		.then(member => {
-			console.log(`Player ${member.user.username} successfully joined team ${name}.`)
-		})
-		.catch(console.error);
+function isTeamFull(name, guild) {
+	return guild.members.filter(x => x.roles.find(role => role.name === name)).size >= 5;
 }
 
 client.on('ready', () => {
@@ -111,25 +114,30 @@ client.on('message', msg => {
 	if (command === 'capitaine') {
 
 		if (!args[0])
-			return msg.reply("Merci de préciser le nom de ton équipe.");
+			return msg.reply("merci de préciser le nom de ton équipe.");
 		else if (alreadyHasTeam(msg.member))
-			return msg.reply("Tu fais déjà partie d'une équipe.");
+			return msg.reply("tu fais déjà partie d'une équipe.");
 		//check form
 
 		createTeam(args[0], msg);
 
 	} else if (command === 'joueur') {
 
+		//promise
 		if (!args[0])
-			return msg.reply("Merci de préciser le nom de ton équipe.");
-		else if (!doesTeamExist(args[0], msg))
-			return msg.reply("L'équipe que tu essaies de rejoindre n'existe pas.");
-		else if (isTeamFull(args[0]))
-			return msg.reply("L'équipe que tu essaies de rejoindre est complète.");
+			return msg.reply("merci de préciser le nom de ton équipe.");
+		else if (alreadyHasTeam(msg.member))
+			return msg.reply("tu fais déjà partie d'une équipe.");
+		else if (!doesTeamExist(args[0], msg.guild))
+			return msg.reply("l'équipe que tu essaies de rejoindre n'existe pas.");
+		else if (isTeamFull(args[0], msg.guild))
+			return msg.reply("l'équipe que tu essaies de rejoindre est complète.");
+
+		joinTeam(args[0], msg);
 
 
 	} else {
-		return msg.reply("Commande inconnue. Merci d'utiliser !capitaine ou !joueur.");
+		return msg.reply("commande inconnue. Merci d'utiliser !capitaine ou !joueur.");
 	}
 
 });
