@@ -8,8 +8,10 @@ const playerRoleId = '565517370509230100';
 
 const teamsChannelCategory = '565519532483936308'
 
-const roleChannelId = '571726631668809728'; //Channel de debug
-//const roleChannelId = '568482301000941608'; //Channel de role
+if (config.debug)
+	const roleChannelId = '571726631668809728'; //Channel de debug
+else
+	const roleChannelId = '568482301000941608'; //Channel de role
 
 function createTeam(name, msg) {
 	msg.guild.createRole({
