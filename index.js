@@ -1,17 +1,40 @@
 const Discord = require('discord.js');
 
+const {google} = require('googleapis');
+
 const client = new Discord.Client();
 const config = require('./config.json');
+
 
 const captainRoleId = '571729215758794763';
 const playerRoleId = '565517370509230100';
 
 const teamsChannelCategory = '565519532483936308';
 
+
+const spreadsheetId = '1F73VtNylV9xaKhAFJEoHmcjkG07QKB14RaalgVvEhD4'; //Id of the Google Spreedsheet connected to the team names' Google Form
+const spreadsheetRange = 'B2:B'; //Spreedsheet's range to get all the Team Names
+
+const sheets = google.sheets({
+	version: 'v4',
+	auth: config.sheetsApiKey
+});
+
+
 if (config.debug)
-	var roleChannelId = '571726631668809728'; //Channel de debug
+	var roleChannelId = '571726631668809728'; //Debug Channel
 else
-	var roleChannelId = '568482301000941608'; //Channel de role
+	var roleChannelId = '568482301000941608'; //Role Channel
+
+
+
+async function getTeamNames() {
+	const res = await sheets.spreadsheets.values.get({
+		spreadsheetId,
+		range: spreadsheetRange
+	});
+	return res.data
+}
 
 function createTeam(name, msg) {
 	msg.guild.createRole({
@@ -70,6 +93,10 @@ function joinTeam(name, msg) {
 		.catch(console.error);
 }
 
+function updateActivity(nbTeams) {
+	client.user.setActivity(`Managing ${nbTeams} Teams registered to LEL`);
+}
+
 function alreadyHasTeam(member) {
 	return member.roles.find(x => x.id === captainRoleId || x.id === playerRoleId);
 }
@@ -82,13 +109,7 @@ function isTeamFull(name, guild) {
 	return guild.members.filter(x => x.roles.find(role => role.name === name)).size >= 5;
 }
 
-client.on('ready', () => {
-	console.log(`LEL Bot launched with ${client.users.size} users in ${client.channels.size} channels.`);
-	client.user.setActivity('PepS has big booty');
-});
-
-client.on('message', msg => {
-
+async function executeCmd(msg) {
 	if (msg.author.bot || msg.content.indexOf(config.prefix) || roleChannelId !== msg.channel.id)
 		return;
 
@@ -113,17 +134,18 @@ client.on('message', msg => {
 
 	if (command === 'capitaine') {
 
+		let teamNames = await getTeamNames();
+		console.log(teamNames);
+
 		if (!args[0])
 			return msg.reply("merci de préciser le nom de ton équipe.");
 		else if (alreadyHasTeam(msg.member))
 			return msg.reply("tu fais déjà partie d'une équipe.");
-		//check form
 
 		createTeam(args[0], msg);
 
 	} else if (command === 'joueur') {
 
-		//promise
 		if (!args[0])
 			return msg.reply("merci de préciser le nom de ton équipe.");
 		else if (alreadyHasTeam(msg.member))
@@ -139,7 +161,20 @@ client.on('message', msg => {
 	} else {
 		return msg.reply("commande inconnue. Merci d'utiliser !capitaine ou !joueur.");
 	}
+}
 
+client.on('ready', () => {
+	console.log(`LEL Bot launched with ${client.users.size} users in ${client.channels.size} channels.`);
+
+	getTeamNames()
+		.then(names => {
+			updateActivity(names.values.length);
+		})
+		.catch(console.error);
+});
+
+client.on('message', msg => {
+	executeCmd(msg)
 });
 
 client.login(config.token);
